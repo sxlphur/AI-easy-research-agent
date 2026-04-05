@@ -1,0 +1,35 @@
+name: Daily Paper Fetch
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 6 AM UTC daily
+  workflow_dispatch:        # Allow manual trigger
+
+jobs:
+  fetch-papers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          GROK_API_KEY: ${{ secrets.GROK_API_KEY }}
+        run: python backend/pipeline.py --max 20 --top 10
+
+      - name: Commit updated papers
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/papers.json data/seen.json
+          git diff --staged --quiet || git commit -m "chore: daily paper update $(date -u '+%Y-%m-%d')"
+          git push
